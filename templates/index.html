@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NIDS — Network Intrusion Detection System</title>
+
+
+  <style>
+    /* ATTACK BLINK EFFECT */
+    @keyframes blinkAttack {
+      0% {
+        background-color: rgba(255, 60, 95, 0.15);
+      }
+
+      50% {
+        background-color: rgba(255, 60, 95, 0.6);
+      }
+
+      100% {
+        background-color: rgba(255, 60, 95, 0.15);
+      }
+    }
+
+    @keyframes pulseBorder {
+      0% {
+        box-shadow: 0 0 5px rgba(255, 60, 95, 0.4);
+      }
+
+      50% {
+        box-shadow: 0 0 25px rgba(255, 60, 95, 0.9);
+      }
+
+      100% {
+        box-shadow: 0 0 5px rgba(255, 60, 95, 0.4);
+      }
+    }
+
+    .attack-animate {
+      animation: blinkAttack 1s infinite, pulseBorder 1.2s infinite;
+    }
+
+    .normal-animate {
+      box-shadow: 0 0 10px rgba(0, 255, 150, 0.3);
+    }
+  </style>
+
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap"
+    rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #050a0f;
+      --bg2: #0a1520;
+      --bg3: #0f1e2e;
+      --border: #1a3a5c;
+      --accent: #00d4ff;
+      --accent2: #00ff88;
+      --danger: #ff3c5f;
+      --warn: #ffaa00;
+      --text: #c8dce8;
+      --text-dim: #4a6a80;
+      --font-mono: 'Share Tech Mono', monospace;
+      --font-ui: 'Rajdhani', sans-serif;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-ui);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Grid scanline overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0, 212, 255, 0.015) 2px, rgba(0, 212, 255, 0.015) 4px);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Header ── */
+    header {
+      position: relative;
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 64px;
+      background: rgba(10, 21, 32, 0.95);
+      backdrop-filter: blur(8px);
+      z-index: 100;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-family: var(--font-mono);
+      font-size: 1.1rem;
+      color: var(--accent);
+      letter-spacing: 2px;
+    }
+
+    .logo-icon {
+      width: 36px;
+      height: 36px;
+      border: 2px solid var(--accent);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      box-shadow: 0 0 12px rgba(0, 212, 255, 0.4);
+      animation: pulse-border 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-border {
+
+      0%,
+      100% {
+        box-shadow: 0 0 12px rgba(0, 212, 255, 0.4);
+      }
+
+      50% {
+        box-shadow: 0 0 24px rgba(0, 212, 255, 0.8);
+      }
+    }
+
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--text-dim);
+    }
+
+    .status-dot {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--accent2);
+    }
+
+    .status-dot::before {
+      content: '';
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent2);
+      box-shadow: 0 0 8px var(--accent2);
+      animation: blink 1.5s ease-in-out infinite;
+    }
+
+    @keyframes blink {
+
+      0%,
+      100% {
+        opacity: 1
+      }
+
+      50% {
+        opacity: 0.3
+      }
+    }
+
+    /* ── Layout ── */
+    .app {
+      display: flex;
+      min-height: calc(100vh - 64px);
+    }
+
+    /* Sidebar */
+    nav {
+      width: 200px;
+      flex-shrink: 0;
+      border-right: 1px solid var(--border);
+      background: var(--bg2);
+      padding: 1.5rem 0;
+      position: sticky;
+      top: 64px;
+      height: calc(100vh - 64px);
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0.75rem 1.5rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+      cursor: pointer;
+      transition: all 0.2s;
+      border-left: 3px solid transparent;
+      text-transform: uppercase;
+    }
+
+    .nav-item:hover {
+      color: var(--accent);
+      background: rgba(0, 212, 255, 0.05);
+    }
+
+    .nav-item.active {
+      color: var(--accent);
+      border-left-color: var(--accent);
+      background: rgba(0, 212, 255, 0.08);
+    }
+
+    .nav-icon {
+      font-size: 1rem;
+      width: 20px;
+      text-align: center;
+    }
+
+    /* Main content */
+    main {
+      flex: 1;
+      padding: 2rem;
+      position: relative;
+      z-index: 1;
+      overflow-y: auto;
+    }
+
+    /* Panels */
+    .panel-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .panel {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.5rem;
+      position: relative;
+      overflow: hidden;
+      animation: fadeIn 0.4s ease both;
+    }
+
+    .panel::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      opacity: 0.5;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px)
+      }
+
+      to {
+        opacity: 1;
+        transform: none
+      }
+    }
+
+    .stat-label {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      color: var(--text-dim);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-value {
+      font-family: var(--font-mono);
+      font-size: 2rem;
+      color: var(--accent);
+      line-height: 1;
+    }
+
+    .stat-value.danger {
+      color: var(--danger);
+    }
+
+    .stat-value.success {
+      color: var(--accent2);
+    }
+
+    /* Section header */
+    .section {
+      margin-bottom: 2rem;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--accent);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .section-header::before {
+      content: '▶';
+      font-size: 0.6rem;
+    }
+
+    /* Page sections (tabs) */
+    .page {
+      display: none;
+    }
+
+    .page.active {
+      display: block;
+    }
+
+    /* ── Predict Form ── */
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .field label {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      color: var(--text-dim);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .field input {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      padding: 0.5rem 0.75rem;
+      border-radius: 4px;
+      outline: none;
+      transition: border 0.2s;
+    }
+
+    .field input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 8px rgba(0, 212, 255, 0.2);
+    }
+
+    .btn {
+      padding: 0.75rem 2rem;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: var(--bg);
+      box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+    }
+
+    .btn-primary:hover {
+      box-shadow: 0 0 30px rgba(0, 212, 255, 0.6);
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--text-dim);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* Result box */
+    #result-box {
+      display: none;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      margin-top: 1.5rem;
+      animation: fadeIn 0.4s ease;
+    }
+
+    .result-header {
+      padding: 1.25rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .result-header.attack {
+      background: rgba(255, 60, 95, 0.15);
+      border-bottom: 1px solid rgba(255, 60, 95, 0.3);
+    }
+
+    .result-header.normal {
+      background: rgba(0, 255, 136, 0.1);
+      border-bottom: 1px solid rgba(0, 255, 136, 0.3);
+    }
+
+    .result-label {
+      font-family: var(--font-mono);
+      font-size: 1.4rem;
+      font-weight: bold;
+    }
+
+    .result-label.attack {
+      color: var(--danger);
+    }
+
+    .result-label.normal {
+      color: var(--accent2);
+    }
+
+    .result-badge {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      padding: 4px 12px;
+      border-radius: 20px;
+      letter-spacing: 2px;
+    }
+
+    .result-badge.attack {
+      background: rgba(255, 60, 95, 0.2);
+      color: var(--danger);
+      border: 1px solid var(--danger);
+    }
+
+    .result-badge.normal {
+      background: rgba(0, 255, 136, 0.1);
+      color: var(--accent2);
+      border: 1px solid var(--accent2);
+    }
+
+    .result-body {
+      padding: 1.5rem;
+      background: var(--bg2);
+    }
+
+    .model-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.6rem 0;
+      border-bottom: 1px solid var(--border);
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+    }
+
+    .model-row:last-child {
+      border: none;
+    }
+
+    .conf-bar-wrap {
+      flex: 1;
+      margin: 0 1rem;
+      height: 4px;
+      background: var(--bg3);
+      border-radius: 2px;
+    }
+
+    .conf-bar {
+      height: 100%;
+      border-radius: 2px;
+      background: var(--accent);
+      transition: width 0.6s ease;
+    }
+
+    /* Prob bars */
+    .prob-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .prob-item {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+    }
+
+    .prob-label {
+      color: var(--text-dim);
+      margin-bottom: 3px;
+    }
+
+    .prob-bar-wrap {
+      height: 3px;
+      background: var(--bg3);
+      border-radius: 2px;
+    }
+
+    .prob-bar {
+      height: 100%;
+      border-radius: 2px;
+      background: var(--accent);
+    }
+
+    /* SHAP chart */
+    #shap-container {
+      margin-top: 1rem;
+    }
+
+    /* ── History ── */
+    .history-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+    }
+
+    .history-table th {
+      text-align: left;
+      padding: 0.6rem 1rem;
+      color: var(--text-dim);
+      letter-spacing: 2px;
+      font-size: 0.65rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .history-table td {
+      padding: 0.6rem 1rem;
+      border-bottom: 1px solid rgba(26, 58, 92, 0.4);
+      vertical-align: middle;
+    }
+
+    .history-table tr:hover td {
+      background: rgba(0, 212, 255, 0.04);
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 20px;
+      font-size: 0.65rem;
+      letter-spacing: 1px;
+    }
+
+    .badge.attack {
+      background: rgba(255, 60, 95, 0.15);
+      color: var(--danger);
+      border: 1px solid rgba(255, 60, 95, 0.4);
+    }
+
+    .badge.normal {
+      background: rgba(0, 255, 136, 0.1);
+      color: var(--accent2);
+      border: 1px solid rgba(0, 255, 136, 0.3);
+    }
+
+    /* ── Dashboard ── */
+    .chart-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+
+    .chart-panel {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.5rem;
+    }
+
+    .chart-title {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      color: var(--text-dim);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 1rem;
+    }
+
+    canvas {
+      max-height: 260px;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--bg);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 3px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <div class="logo">
+      <div class="logo-icon">⬡</div>
+      NIDS // INTRUSION DETECTION
+    </div>
+    <div class="status-bar">
+      <span class="status-dot">SYSTEM ONLINE</span>
+      <span id="clock" style="color:var(--text-dim)"></span>
+    </div>
+  </header>
+
+  <div class="app">
+    <nav>
+      <div class="nav-item active" onclick="showPage('predict', this)">
+        <span class="nav-icon">⌖</span> Predict
+      </div>
+      <div class="nav-item" onclick="showPage('history', this)">
+        <span class="nav-icon">≡</span> History
+      </div>
+      <div class="nav-item" onclick="showPage('dashboard', this)">
+        <span class="nav-icon">◈</span> Dashboard
+      </div>
+    </nav>
+
+    <main>
+
+      <!-- ── PREDICT ── -->
+      <div id="page-predict" class="page active">
+        <div class="section-header">Manual Traffic Analysis</div>
+
+        <div class="panel" style="margin-bottom:1.5rem">
+          <div class="form-grid" id="form-fields"></div>
+          <div style="display:flex;gap:1rem;flex-wrap:wrap">
+            <button class="btn btn-primary" onclick="predict()">▶ &nbsp;ANALYZE TRAFFIC</button>
+            <button class="btn btn-secondary" onclick="loadSample('normal')">Load Normal Sample</button>
+            <button class="btn btn-secondary" onclick="loadSample('attack')">Load Attack Sample</button>
+            <button class="btn btn-secondary" onclick="clearForm()">Clear</button>
+          </div>
+        </div>
+
+        <div id="result-box">
+          <div class="result-header" id="result-header">
+            <div>
+              <div
+                style="font-family:var(--font-mono);font-size:0.6rem;color:var(--text-dim);letter-spacing:2px;margin-bottom:4px">
+                CLASSIFICATION RESULT</div>
+              <div class="result-label" id="result-label"></div>
+              <div style="font-size:0.85rem;color:var(--text-dim);margin-top:2px" id="result-subtype"></div>
+            </div>
+            <span class="result-badge" id="result-badge"></span>
+          </div>
+          <div class="result-body">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem">
+              <div>
+                <div
+                  style="font-family:var(--font-mono);font-size:0.65rem;color:var(--text-dim);letter-spacing:2px;margin-bottom:0.75rem">
+                  MODEL CONFIDENCE</div>
+                <div id="model-rows"></div>
+              </div>
+              <div>
+                <div
+                  style="font-family:var(--font-mono);font-size:0.65rem;color:var(--text-dim);letter-spacing:2px;margin-bottom:0.75rem">
+                  CLASS PROBABILITIES</div>
+                <div class="prob-grid" id="prob-grid"></div>
+              </div>
+            </div>
+            <div id="shap-container">
+              <div
+                style="font-family:var(--font-mono);font-size:0.65rem;color:var(--text-dim);letter-spacing:2px;margin:1.5rem 0 0.75rem">
+                TOP SHAP FEATURES (WHY THIS PREDICTION?)</div>
+              <canvas id="shap-chart" height="180"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── HISTORY ── -->
+      <div id="page-history" class="page">
+        <div class="section-header">Prediction History</div>
+        <div class="panel" style="padding:0;overflow:hidden">
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th>TIMESTAMP</th>
+                <th>PREDICTION</th>
+                <th>TYPE</th>
+                <th>RF CONF</th>
+                <th>XGB CONF</th>
+                <th>STATUS</th>
+              </tr>
+            </thead>
+            <tbody id="history-tbody">
+              <tr>
+                <td colspan="6" style="text-align:center;color:var(--text-dim);padding:2rem">No predictions yet</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── DASHBOARD ── -->
+      <div id="page-dashboard" class="page">
+        <div class="section-header">Model Performance Dashboard</div>
+
+        <div class="panel-grid">
+          <div class="panel">
+            <div class="stat-label">Best Model</div>
+            <div class="stat-value" style="font-size:1.2rem;margin-top:4px">Random Forest</div>
+          </div>
+          <div class="panel">
+            <div class="stat-label">RF Macro F1</div>
+            <div class="stat-value">0.8156</div>
+          </div>
+          <div class="panel">
+            <div class="stat-label">RF Accuracy</div>
+            <div class="stat-value success">93.52%</div>
+          </div>
+          <div class="panel">
+            <div class="stat-label">XGB Macro F1</div>
+            <div class="stat-value">0.7673</div>
+          </div>
+          <div class="panel">
+            <div class="stat-label">Total Predictions</div>
+            <div class="stat-value" id="dash-total">0</div>
+          </div>
+          <div class="panel">
+            <div class="stat-label">Attacks Detected</div>
+            <div class="stat-value danger" id="dash-attacks">0</div>
+          </div>
+        </div>
+
+        <div class="chart-grid">
+          <div class="chart-panel">
+            <div class="chart-title">Per-Class F1 Score (Random Forest)</div>
+            <canvas id="f1-chart"></canvas>
+          </div>
+          <div class="chart-panel">
+            <div class="chart-title">Model Comparison</div>
+            <canvas id="model-chart"></canvas>
+          </div>
+          <div class="chart-panel">
+            <div class="chart-title">Prediction Breakdown (Live Session)</div>
+            <canvas id="breakdown-chart"></canvas>
+          </div>
+          <div class="chart-panel">
+            <div class="chart-title">Attack vs Normal (Live Session)</div>
+            <canvas id="donut-chart"></canvas>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <script>
+    // ── Clock ──
+    function updateClock() {
+      document.getElementById('clock').textContent = new Date().toLocaleTimeString();
+    }
+    setInterval(updateClock, 1000); updateClock();
+
+    // ── Navigation ──
+    function showPage(name, el) {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      document.getElementById('page-' + name).classList.add('active');
+      el.classList.add('active');
+      if (name === 'dashboard') loadDashboard();
+      if (name === 'history') loadHistory();
+    }
+
+    // ── Form Fields ──
+    const FIELDS = [
+      { name: 'protocol_type', label: 'Protocol Type', default: 1 },
+      { name: 'service', label: 'Service', default: 0 },
+      { name: 'flag', label: 'Flag', default: 0 },
+      { name: 'src_bytes', label: 'Src Bytes', default: 0 },
+      { name: 'dst_bytes', label: 'Dst Bytes', default: 0 },
+      { name: 'num_failed_logins', label: 'Failed Logins', default: 0 },
+      { name: 'logged_in', label: 'Logged In', default: 1 },
+      { name: 'root_shell', label: 'Root Shell', default: 0 },
+      { name: 'su_attempted', label: 'SU Attempted', default: 0 },
+      { name: 'num_shells', label: 'Num Shells', default: 0 },
+      { name: 'num_access_files', label: 'Access Files', default: 0 },
+      { name: 'count', label: 'Count', default: 1 },
+      { name: 'srv_count', label: 'Srv Count', default: 1 },
+      { name: 'serror_rate', label: 'SError Rate', default: 0 },
+      { name: 'srv_serror_rate', label: 'Srv SError Rate', default: 0 },
+      { name: 'rerror_rate', label: 'RError Rate', default: 0 },
+      { name: 'same_srv_rate', label: 'Same Srv Rate', default: 1 },
+      { name: 'diff_srv_rate', label: 'Diff Srv Rate', default: 0 },
+      { name: 'dst_host_count', label: 'DST Host Count', default: 1 },
+      { name: 'dst_host_srv_count', label: 'DST Host Srv Count', default: 1 },
+      { name: 'dst_host_same_srv_rate', label: 'DST Same Srv Rate', default: 1 },
+      { name: 'dst_host_diff_srv_rate', label: 'DST Diff Srv Rate', default: 0 },
+      { name: 'dst_host_same_src_port_rate', label: 'DST Same Src Port', default: 0 },
+      { name: 'dst_host_srv_diff_host_rate', label: 'DST Srv Diff Host', default: 0 },
+      { name: 'dst_host_serror_rate', label: 'DST SError Rate', default: 0 },
+      { name: 'dst_host_srv_serror_rate', label: 'DST Srv SError Rate', default: 0 },
+      { name: 'dst_host_rerror_rate', label: 'DST RError Rate', default: 0 },
+      { name: 'failed_login_ratio', label: 'Failed Login Ratio', default: 0 },
+      { name: 'root_shell_ratio', label: 'Root Shell Ratio', default: 0 },
+      { name: 'suspicion_score', label: 'Suspicion Score', default: 0 },
+    ];
+
+    const formEl = document.getElementById('form-fields');
+    FIELDS.forEach(f => {
+      formEl.innerHTML += `
+    <div class="field">
+      <label>${f.label}</label>
+      <input type="number" step="any" id="f_${f.name}" value="${f.default}"/>
+    </div>`;
+    });
+
+    function getFormData() {
+      const data = {};
+      FIELDS.forEach(f => { data[f.name] = parseFloat(document.getElementById('f_' + f.name).value) || 0; });
+      return data;
+    }
+
+    function clearForm() {
+      FIELDS.forEach(f => { document.getElementById('f_' + f.name).value = f.default; });
+    }
+
+    function loadSample(type) {
+      if (type === 'normal') {
+        document.getElementById('f_protocol_type').value = 1;
+        document.getElementById('f_src_bytes').value = 215;
+        document.getElementById('f_dst_bytes').value = 45076;
+        document.getElementById('f_logged_in').value = 1;
+        document.getElementById('f_count').value = 1;
+        document.getElementById('f_same_srv_rate').value = 1;
+        document.getElementById('f_num_failed_logins').value = 0;
+        document.getElementById('f_suspicion_score').value = 0;
+      } else {
+        document.getElementById('f_protocol_type').value = 0;
+        document.getElementById('f_src_bytes').value = 0;
+        document.getElementById('f_dst_bytes').value = 0;
+        document.getElementById('f_logged_in').value = 0;
+        document.getElementById('f_count').value = 511;
+        document.getElementById('f_serror_rate').value = 1.0;
+        document.getElementById('f_srv_serror_rate').value = 1.0;
+        document.getElementById('f_same_srv_rate').value = 1.0;
+        document.getElementById('f_suspicion_score').value = 3;
+      }
+    }
+
+    // ── Predict ──
+    let shapChart = null;
+
+    async function predict() {
+      const btn = document.querySelector('.btn-primary');
+      btn.textContent = '⟳  ANALYZING...';
+      btn.disabled = true;
+
+      try {
+        // ✅ ONLY ONE FETCH
+        const res = await fetch('/predict', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(getFormData())
+        });
+
+        // ✅ Handle backend errors properly
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(text);
+        }
+
+        const data = await res.json();
+
+        const box = document.getElementById('result-box');
+        const header = document.getElementById('result-header');
+        const label = document.getElementById('result-label');
+        const subtype = document.getElementById('result-subtype');
+        const badge = document.getElementById('result-badge');
+
+        box.style.display = 'block';
+
+        const isAtk = data.is_attack;
+        header.className = 'result-header ' + (isAtk ? 'attack' : 'normal');
+        label.className = 'result-label ' + (isAtk ? 'attack' : 'normal');
+        badge.className = 'result-badge ' + (isAtk ? 'attack' : 'normal');
+
+        label.textContent = data.prediction.toUpperCase();
+        subtype.textContent = data.attack_type;
+        badge.textContent = isAtk ? '⚠ ATTACK' : '✓ NORMAL';
+
+        // ✅ Model confidence
+        document.getElementById('model-rows').innerHTML = ['rf', 'xgb'].map(m => `
+      <div class="model-row">
+        <span style="color:var(--text-dim);width:120px">
+          ${m === 'rf' ? 'Random Forest' : 'XGBoost'}
+        </span>
+        <div class="conf-bar-wrap">
+          <div class="conf-bar" style="width:${data[m].confidence}%"></div>
+        </div>
+        <span style="color:var(--accent);width:50px;text-align:right">
+          ${data[m].confidence}%
+        </span>
+      </div>
+    `).join('');
+
+        // ✅ Probabilities
+        const probs = data.all_probabilities;
+        document.getElementById('prob-grid').innerHTML = Object.entries(probs)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 8)
+          .map(([cls, pct]) => `
+        <div class="prob-item">
+          <div class="prob-label">${cls}</div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <div class="prob-bar-wrap" style="flex:1">
+              <div class="prob-bar" style="width:${Math.min(pct, 100)}%"></div>
+            </div>
+            <span style="color:var(--accent);font-size:0.7rem">${pct}%</span>
+          </div>
+        </div>
+      `).join('');
+
+        // ✅ SHAP chart
+        const shap = data.shap || [];
+        const labels = shap.map(s => s.feature);
+        const values = shap.map(s => s.value);
+        const colors = values.map(v => v >= 0
+          ? 'rgba(255,60,95,0.7)'
+          : 'rgba(0,212,255,0.7)'
+        );
+
+        if (shapChart) shapChart.destroy();
+
+        shapChart = new Chart(document.getElementById('shap-chart'), {
+          type: 'bar',
+          data: {
+            labels,
+            datasets: [{
+              data: values,
+              backgroundColor: colors,
+              borderRadius: 3
+            }]
+          },
+          options: {
+            indexAxis: 'y',
+            plugins: { legend: { display: false } },
+            scales: {
+              x: {
+                grid: { color: 'rgba(26,58,92,0.5)' },
+                ticks: { color: '#4a6a80', font: { family: 'Share Tech Mono', size: 10 } }
+              },
+              y: {
+                grid: { display: false },
+                ticks: { color: '#c8dce8', font: { family: 'Share Tech Mono', size: 10 } }
+              }
+            }
+          }
+        });
+
+      } catch (e) {
+        console.error('🔥 ERROR:', e);
+        alert('Backend Error:\n' + e.message);
+      } finally {
+        btn.textContent = '▶  ANALYZE TRAFFIC';
+        btn.disabled = false;
+      }
+    }
+
+    // ── History ──
+    async function loadHistory() {
+      const res = await fetch('/history');
+      const data = await res.json();
+      const tbody = document.getElementById('history-tbody');
+      if (!data.length) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:2rem">No predictions yet</td></tr>';
+        return;
+      }
+      tbody.innerHTML = data.map(h => `
+    <tr>
+      <td>${h.timestamp}</td>
+      <td style="color:var(--accent)">${h.prediction}</td>
+      <td style="color:var(--text-dim)">${h.attack_type}</td>
+      <td>${h.rf.confidence}%</td>
+      <td>${h.xgb.confidence}%</td>
+      <td><span class="badge ${h.is_attack ? 'attack' : 'normal'}">${h.is_attack ? 'ATTACK' : 'NORMAL'}</span></td>
+    </tr>`).join('');
+    }
+
+    // ── Dashboard ──
+    let f1Chart, modelChart, breakdownChart, donutChart;
+
+    async function loadDashboard() {
+      const res = await fetch('/stats');
+      const data = await res.json();
+
+      document.getElementById('dash-total').textContent = data.total;
+      document.getElementById('dash-attacks').textContent = data.attacks;
+
+      const CHART_DEFAULTS = {
+        plugins: { legend: { labels: { color: '#c8dce8', font: { family: 'Share Tech Mono', size: 10 } } } },
+      };
+
+      // F1 per class
+      const classes = Object.keys(data.class_f1);
+      const f1vals = Object.values(data.class_f1);
+      if (f1Chart) f1Chart.destroy();
+      f1Chart = new Chart(document.getElementById('f1-chart'), {
+        type: 'bar',
+        data: {
+          labels: classes, datasets: [{
+            label: 'F1 Score', data: f1vals,
+            backgroundColor: f1vals.map(v => v >= 0.9 ? 'rgba(0,255,136,0.6)' : v >= 0.6 ? 'rgba(0,212,255,0.6)' : 'rgba(255,60,95,0.6)'),
+            borderRadius: 3
+          }]
+        },
+        options: {
+          ...CHART_DEFAULTS, scales: {
+            x: { ticks: { color: '#4a6a80', font: { family: 'Share Tech Mono', size: 9 } }, grid: { color: 'rgba(26,58,92,0.4)' } },
+            y: { min: 0, max: 1, ticks: { color: '#4a6a80', font: { family: 'Share Tech Mono', size: 9 } }, grid: { color: 'rgba(26,58,92,0.4)' } }
+          }
+        }
+      });
+
+      // Model comparison
+      if (modelChart) modelChart.destroy();
+      modelChart = new Chart(document.getElementById('model-chart'), {
+        type: 'bar',
+        data: {
+          labels: ['Random Forest', 'XGBoost'], datasets: [
+            { label: 'Macro F1', data: [0.8156, 0.7673], backgroundColor: 'rgba(0,212,255,0.6)', borderRadius: 3 },
+            { label: 'Accuracy', data: [0.9352, 0.9283], backgroundColor: 'rgba(0,255,136,0.6)', borderRadius: 3 },
+          ]
+        },
+        options: {
+          ...CHART_DEFAULTS, scales: {
+            x: { ticks: { color: '#4a6a80', font: { family: 'Share Tech Mono', size: 10 } }, grid: { color: 'rgba(26,58,92,0.4)' } },
+            y: { min: 0.7, max: 1, ticks: { color: '#4a6a80', font: { family: 'Share Tech Mono', size: 10 } }, grid: { color: 'rgba(26,58,92,0.4)' } }
+          }
+        }
+      });
+
+      // Breakdown
+      const bk = data.breakdown;
+      if (breakdownChart) breakdownChart.destroy();
+      breakdownChart = new Chart(document.getElementById('breakdown-chart'), {
+        type: 'bar',
+        data: {
+          labels: Object.keys(bk), datasets: [{
+            label: 'Count', data: Object.values(bk),
+            backgroundColor: 'rgba(0,212,255,0.5)', borderRadius: 3
+          }]
+        },
+        options: {
+          ...CHART_DEFAULTS, scales: {
+            x: { ticks: { color: '#4a6a80', font: { family: 'Share Tech Mono', size: 9 } }, grid: { color: 'rgba(26,58,92,0.4)' } },
+            y: { ticks: { color: '#4a6a80', font: { family: 'Share Tech Mono', size: 9 } }, grid: { color: 'rgba(26,58,92,0.4)' } }
+          }
+        }
+      });
+
+      // Donut
+      if (donutChart) donutChart.destroy();
+      donutChart = new Chart(document.getElementById('donut-chart'), {
+        type: 'doughnut',
+        data: {
+          labels: ['Normal', 'Attack'], datasets: [{
+            data: [data.normal, data.attacks],
+            backgroundColor: ['rgba(0,255,136,0.7)', 'rgba(255,60,95,0.7)'],
+            borderColor: ['rgba(0,255,136,0.3)', 'rgba(255,60,95,0.3)'],
+            borderWidth: 1
+          }]
+        },
+        options: { ...CHART_DEFAULTS }
+      });
+    }
+  </script>
+</body>
+
+</html>
